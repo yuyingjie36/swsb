@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>适配语种 - 纹定乾坤</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-pink: #ff006e;
+            --neon-purple: #b537f2;
+            --neon-green: #00ff88;
+            --dark-bg: #0a0a0f;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --grid-color: rgba(0, 245, 255, 0.05);
+            --border-glow: 0 0 8px rgba(0, 245, 255, 0.3);
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg); color: #ffffff;
+            overflow: hidden; height: 100vh; height: 100dvh;
+        }
+
+        .cyber-grid {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px; z-index: 0; opacity: 0.6;
+        }
+
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 245, 255, 0.02) 50%);
+            background-size: 100% 4px; z-index: 999; pointer-events: none;
+        }
+
+        .container {
+            position: relative; z-index: 1; max-width: 430px; margin: 0 auto;
+            padding: 0 16px; height: 100vh; height: 100dvh;
+            display: flex; flex-direction: column;
+        }
+
+        /* 滚动区域 */
+        .scroll-area {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding-bottom: 8px;
+        }
+        .scroll-area::-webkit-scrollbar { width: 2px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { background: rgba(0, 245, 255, 0.15); border-radius: 1px; }
+
+        /* 顶部导航 */
+        .top-nav { display: flex; align-items: center; gap: 12px; padding-top: 30px; margin-bottom: 20px; }
+        .back-btn {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease; text-decoration: none;
+        }
+        .back-btn:hover { background: rgba(0, 245, 255, 0.1); border-color: rgba(0, 245, 255, 0.3); box-shadow: var(--border-glow); }
+        .back-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        .nav-title { font-size: 18px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 245, 255, 0.3); }
+
+        /* 面板通用 */
+        .panel {
+            background: var(--panel-bg); border: 1px solid rgba(0, 245, 255, 0.15);
+            border-radius: 12px; padding: 16px; margin-bottom: 14px;
+            position: relative; overflow: hidden;
+        }
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .panel-title {
+            font-size: 13px; font-weight: 600; color: var(--neon-cyan);
+            letter-spacing: 2px; display: flex; align-items: center; gap: 6px;
+        }
+        .panel-title::before {
+            content: ''; width: 6px; height: 6px; background: var(--neon-cyan);
+            border-radius: 50%; box-shadow: 0 0 8px var(--neon-cyan);
+        }
+        .panel-badge {
+            font-size: 11px; color: var(--neon-green); background: rgba(0, 255, 136, 0.1);
+            padding: 2px 10px; border-radius: 10px; border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        /* 统计 */
+        .stat-row { display: flex; gap: 10px; margin-bottom: 14px; }
+        .stat-card {
+            flex: 1; padding: 10px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; text-align: center;
+        }
+        .stat-num { font-size: 20px; font-weight: 700; color: var(--neon-cyan); }
+        .stat-label { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-top: 2px; letter-spacing: 1px; }
+
+        /* 滚动容器 */
+        .lang-scroll {
+            max-height: 420px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 6px;
+            padding-right: 4px;
+        }
+        .lang-scroll::-webkit-scrollbar { width: 3px; }
+        .lang-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 2px; }
+        .lang-scroll::-webkit-scrollbar-thumb { background: rgba(0, 245, 255, 0.2); border-radius: 2px; }
+        .lang-scroll::-webkit-scrollbar-thumb:hover { background: rgba(0, 245, 255, 0.4); }
+
+        .lang-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px;
+            cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .lang-item:hover { background: rgba(0, 245, 255, 0.06); border-color: rgba(0, 245, 255, 0.2); }
+        .lang-item.active { background: rgba(0, 245, 255, 0.08); border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 245, 255, 0.12); }
+
+        .lang-left { display: flex; align-items: center; gap: 10px; }
+        .lang-code-box {
+            width: 36px; height: 36px; border-radius: 6px;
+            background: rgba(0, 245, 255, 0.08); border: 1px solid rgba(0, 245, 255, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 0.5px;
+        }
+        .lang-name { font-size: 13px; font-weight: 600; }
+        .lang-local { font-size: 10px; color: rgba(255, 255, 255, 0.35); margin-top: 1px; }
+
+        .lang-right { display: flex; align-items: center; gap: 8px; }
+        .lang-tag {
+            font-size: 9px; padding: 2px 6px; border-radius: 4px;
+        }
+        .lang-tag.on { border: 1px solid rgba(0,255,136,0.3); color: var(--neon-green); background: rgba(0,255,136,0.08); }
+        .lang-tag.off { border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.03); }
+
+        .toggle {
+            width: 36px; height: 20px; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer;
+            position: relative; transition: background 0.3s ease; flex-shrink: 0;
+        }
+        .toggle::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5); transition: all 0.3s ease;
+        }
+        .toggle.on { background: var(--neon-cyan); }
+        .toggle.on::after { left: 19px; background: #fff; box-shadow: 0 0 8px var(--neon-cyan); }
+
+        /* 底部导航 */
+        .bottom-nav {
+            display: flex; justify-content: center; gap: 10px;
+            padding: 12px 0 env(safe-area-inset-bottom, 12px);
+            flex-shrink: 0;
+            border-top: 1px solid rgba(0, 245, 255, 0.1);
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .nav-link {
+            font-size: 11px; padding: 8px 14px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.5); text-decoration: none; transition: all 0.2s ease;
+        }
+        .nav-link:hover { border-color: rgba(0, 245, 255, 0.3); color: var(--neon-cyan); }
+        .nav-link.current { border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 245, 255, 0.08); }
+    </style>
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    <div class="scanline"></div>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <div class="top-nav">
+            <a href="index.html" class="back-btn">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </a>
+            <div class="nav-title">适配语种</div>
+        </div>
+
+        <!-- 可滚动区域 -->
+        <div class="scroll-area">
+
+        <!-- 统计 -->
+        <div class="stat-row">
+            <div class="stat-card"><div class="stat-num">29</div><div class="stat-label">支持语种</div></div>
+            <div class="stat-card"><div class="stat-num" id="activeCount">0</div><div class="stat-label">已激活</div></div>
+            <div class="stat-card"><div class="stat-num" id="inactiveCount">0</div><div class="stat-label">未启用</div></div>
+        </div>
+
+        <!-- 语种列表（滚动） -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">全部语种</div>
+                <div class="panel-badge">29 种</div>
+            </div>
+            <div class="lang-scroll" id="langList"></div>
+        </div>
+
+        </div><!-- end scroll-area -->
+
+        <!-- 底部导航 -->
+        <div class="bottom-nav">
+            <a href="index.html" class="nav-link">声纹识别</a>
+            <a href="language.html" class="nav-link current">适配语种</a>
+            <a href="dialect.html" class="nav-link">适配方言</a>
+            <a href="model.html" class="nav-link">模型管理</a>
+        </div>
+    </div>
+
+    <script>
+        const languages = [
+            { code: 'zh', name: '普通话', local: 'zh-CN / Mandarin', defaultOn: true },
+            { code: 'en', name: '英语', local: 'en-US / English', defaultOn: true },
+            { code: 'ja', name: '日语', local: 'ja-JP / Japanese', defaultOn: false },
+            { code: 'ko', name: '韩语', local: 'ko-KR / Korean', defaultOn: false },
+            { code: 'fr', name: '法语', local: 'fr-FR / French', defaultOn: false },
+            { code: 'de', name: '德语', local: 'de-DE / German', defaultOn: false },
+            { code: 'es', name: '西班牙语', local: 'es-ES / Spanish', defaultOn: false },
+            { code: 'ar', name: '阿拉伯语', local: 'ar-SA / Arabic', defaultOn: false },
+            { code: 'ru', name: '俄语', local: 'ru-RU / Russian', defaultOn: false },
+            { code: 'pt', name: '葡萄牙语', local: 'pt-PT / Portuguese', defaultOn: false },
+            { code: 'it', name: '意大利语', local: 'it-IT / Italian', defaultOn: false },
+            { code: 'nl', name: '荷兰语', local: 'nl-NL / Dutch', defaultOn: false },
+            { code: 'tr', name: '土耳其语', local: 'tr-TR / Turkish', defaultOn: false },
+            { code: 'th', name: '泰语', local: 'th-TH / Thai', defaultOn: false },
+            { code: 'vi', name: '越南语', local: 'vi-VN / Vietnamese', defaultOn: false },
+            { code: 'id', name: '印尼语', local: 'id-ID / Indonesian', defaultOn: false },
+            { code: 'hi', name: '印地语', local: 'hi-IN / Hindi', defaultOn: false },
+            { code: 'ur', name: '乌尔都语', local: 'ur-PK / Urdu', defaultOn: false },
+            { code: 'fa', name: '波斯语', local: 'fa-IR / Persian', defaultOn: false },
+            { code: 'he', name: '希伯来语', local: 'he-IL / Hebrew', defaultOn: false },
+            { code: 'el', name: '希腊语', local: 'el-GR / Greek', defaultOn: false },
+            { code: 'pl', name: '波兰语', local: 'pl-PL / Polish', defaultOn: false },
+            { code: 'sv', name: '瑞典语', local: 'sv-SE / Swedish', defaultOn: false },
+            { code: 'no', name: '挪威语', local: 'no-NO / Norwegian', defaultOn: false },
+            { code: 'da', name: '丹麦语', local: 'da-DK / Danish', defaultOn: false },
+            { code: 'fi', name: '芬兰语', local: 'fi-FI / Finnish', defaultOn: false },
+            { code: 'hu', name: '匈牙利语', local: 'hu-HU / Hungarian', defaultOn: false },
+            { code: 'cs', name: '捷克语', local: 'cs-CZ / Czech', defaultOn: false },
+            { code: 'ro', name: '罗马尼亚语', local: 'ro-RO / Romanian', defaultOn: false }
+        ];
+
+        const STORAGE_KEY = 'wdqk_languages';
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) return JSON.parse(saved);
+            } catch(e) {}
+            const defaultState = {};
+            languages.forEach(l => defaultState[l.code] = l.defaultOn);
+            return defaultState;
+        }
+
+        function saveState(state) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            updateStats(state);
+        }
+
+        function updateStats(state) {
+            const active = Object.values(state).filter(v => v).length;
+            document.getElementById('activeCount').textContent = active;
+            document.getElementById('inactiveCount').textContent = languages.length - active;
+        }
+
+        function render() {
+            const state = loadState();
+            const container = document.getElementById('langList');
+            container.innerHTML = '';
+
+            languages.forEach(lang => {
+                const isOn = state[lang.code] || false;
+                const item = document.createElement('div');
+                item.className = 'lang-item' + (isOn ? ' active' : '');
+                item.innerHTML = `
+                    <div class="lang-left">
+                        <div class="lang-code-box">${lang.code.toUpperCase()}</div>
+                        <div>
+                            <div class="lang-name">${lang.name}</div>
+                            <div class="lang-local">${lang.local}</div>
+                        </div>
+                    </div>
+                    <div class="lang-right">
+                        <span class="lang-tag ${isOn ? 'on' : 'off'}">${isOn ? '已激活' : '未启用'}</span>
+                        <button class="toggle ${isOn ? 'on' : ''}" data-code="${lang.code}"></button>
+                    </div>
+                `;
+                item.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('toggle')) return;
+                    const btn = item.querySelector('.toggle');
+                    btn.click();
+                });
+                container.appendChild(item);
+            });
+
+            document.querySelectorAll('.toggle').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const code = btn.dataset.code;
+                    const state = loadState();
+                    state[code] = !state[code];
+                    saveState(state);
+                    render();
+                });
+            });
+
+            updateStats(state);
+        }
+
+        render();
+    </script>
+</body>
+</html>

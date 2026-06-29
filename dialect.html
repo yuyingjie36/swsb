@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>适配方言 - 纹定乾坤</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-pink: #ff006e;
+            --neon-purple: #b537f2;
+            --neon-green: #00ff88;
+            --dark-bg: #0a0a0f;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --grid-color: rgba(0, 245, 255, 0.05);
+            --border-glow: 0 0 8px rgba(0, 245, 255, 0.3);
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg); color: #ffffff;
+            overflow: hidden; height: 100vh; height: 100dvh;
+        }
+
+        .cyber-grid {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px; z-index: 0; opacity: 0.6;
+        }
+
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 245, 255, 0.02) 50%);
+            background-size: 100% 4px; z-index: 999; pointer-events: none;
+        }
+
+        .container {
+            position: relative; z-index: 1; max-width: 430px; margin: 0 auto;
+            padding: 0 16px; height: 100vh; height: 100dvh;
+            display: flex; flex-direction: column;
+        }
+
+        /* 滚动区域 */
+        .scroll-area {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding-bottom: 8px;
+        }
+        .scroll-area::-webkit-scrollbar { width: 2px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { background: rgba(0, 245, 255, 0.15); border-radius: 1px; }
+
+        /* 顶部导航 */
+        .top-nav { display: flex; align-items: center; gap: 12px; padding-top: 30px; margin-bottom: 24px; }
+        .back-btn {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease; text-decoration: none;
+        }
+        .back-btn:hover { background: rgba(0, 245, 255, 0.1); border-color: rgba(0, 245, 255, 0.3); box-shadow: var(--border-glow); }
+        .back-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        .nav-title { font-size: 18px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 245, 255, 0.3); }
+
+        /* 面板通用 */
+        .panel {
+            background: var(--panel-bg); border: 1px solid rgba(0, 245, 255, 0.15);
+            border-radius: 12px; padding: 16px; margin-bottom: 16px;
+            position: relative; overflow: hidden;
+        }
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .panel-title {
+            font-size: 13px; font-weight: 600; color: var(--neon-cyan);
+            letter-spacing: 2px; display: flex; align-items: center; gap: 6px;
+        }
+        .panel-title::before {
+            content: ''; width: 6px; height: 6px; background: var(--neon-cyan);
+            border-radius: 50%; box-shadow: 0 0 8px var(--neon-cyan);
+        }
+        .panel-badge {
+            font-size: 11px; color: var(--neon-green); background: rgba(0, 255, 136, 0.1);
+            padding: 2px 10px; border-radius: 10px; border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        /* 区域标题 */
+        .region-label {
+            font-size: 12px; color: var(--neon-purple); font-weight: 600;
+            letter-spacing: 3px; margin-bottom: 10px; margin-top: 14px;
+            padding-bottom: 6px; border-bottom: 1px solid rgba(181, 55, 242, 0.15);
+        }
+        .region-label:first-of-type { margin-top: 0; }
+
+        /* 方言列表 */
+        .dialect-list { display: flex; flex-direction: column; gap: 6px; }
+        .dialect-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .dialect-item:hover { background: rgba(0, 245, 255, 0.06); border-color: rgba(0, 245, 255, 0.2); }
+        .dialect-item.active {
+            background: rgba(0, 245, 255, 0.08); border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 245, 255, 0.12);
+        }
+
+        .dialect-left { display: flex; align-items: center; gap: 10px; }
+        .dialect-icon {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: rgba(181, 55, 242, 0.12); border: 1px solid rgba(181, 55, 242, 0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; color: var(--neon-purple);
+        }
+        .dialect-name { font-size: 13px; font-weight: 600; }
+        .dialect-sub { font-size: 10px; color: rgba(255, 255, 255, 0.35); margin-top: 1px; }
+
+        .dialect-right { display: flex; align-items: center; gap: 6px; }
+        .dialect-tag {
+            font-size: 9px; padding: 2px 6px; border-radius: 4px;
+        }
+        .dialect-tag.active { border: 1px solid rgba(0,255,136,0.3); color: var(--neon-green); background: rgba(0,255,136,0.08); }
+        .dialect-tag.training { border: 1px solid rgba(255,140,0,0.3); color: #ff8c00; background: rgba(255,140,0,0.08); }
+        .dialect-tag.idle { border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.03); }
+
+        .toggle {
+            width: 36px; height: 20px; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1); border: none; cursor: pointer;
+            position: relative; transition: background 0.3s ease;
+        }
+        .toggle::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5); transition: all 0.3s ease;
+        }
+        .toggle.on { background: var(--neon-cyan); }
+        .toggle.on::after { left: 19px; background: #fff; box-shadow: 0 0 8px var(--neon-cyan); }
+
+        /* 统计面板 */
+        .stat-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .stat-card {
+            flex: 1; padding: 12px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; text-align: center;
+        }
+        .stat-num { font-size: 22px; font-weight: 700; color: var(--neon-cyan); }
+        .stat-label { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-top: 4px; letter-spacing: 1px; }
+
+        /* 底部导航 */
+        .bottom-nav {
+            display: flex; justify-content: center; gap: 10px;
+            padding: 12px 0 env(safe-area-inset-bottom, 12px);
+            flex-shrink: 0;
+            border-top: 1px solid rgba(0, 245, 255, 0.1);
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .nav-link {
+            font-size: 12px; padding: 8px 16px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.5); text-decoration: none; transition: all 0.2s ease;
+        }
+        .nav-link:hover { border-color: rgba(0, 245, 255, 0.3); color: var(--neon-cyan); }
+        .nav-link.current { border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 245, 255, 0.08); }
+    </style>
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    <div class="scanline"></div>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <div class="top-nav">
+            <a href="index.html" class="back-btn">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </a>
+            <div class="nav-title">适配方言</div>
+        </div>
+
+        <div class="scroll-area">
+
+        <!-- 统计 -->
+        <div class="stat-row">
+            <div class="stat-card">
+                <div class="stat-num">12</div>
+                <div class="stat-label">方言总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">3</div>
+                <div class="stat-label">已启用</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">2</div>
+                <div class="stat-label">训练中</div>
+            </div>
+        </div>
+
+        <!-- 川渝方言 -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">川渝方言</div>
+                <div class="panel-badge">12 种</div>
+            </div>
+            <div class="dialect-list">
+
+                <div class="region-label">四川方言</div>
+
+                <div class="dialect-item active">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">蓉</div>
+                        <div>
+                            <div class="dialect-name">成都话</div>
+                            <div class="dialect-sub">成都市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag active">已启用</span>
+                        <button class="toggle on" data-code="cd"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item active">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">渝</div>
+                        <div>
+                            <div class="dialect-name">重庆话</div>
+                            <div class="dialect-sub">重庆市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag active">已启用</span>
+                        <button class="toggle on" data-code="cq"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item active">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">绵</div>
+                        <div>
+                            <div class="dialect-name">绵阳话</div>
+                            <div class="dialect-sub">绵阳市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag active">已启用</span>
+                        <button class="toggle on" data-code="my"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">南</div>
+                        <div>
+                            <div class="dialect-name">南充话</div>
+                            <div class="dialect-sub">南充市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag training">训练中</span>
+                        <button class="toggle" data-code="nc"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">乐</div>
+                        <div>
+                            <div class="dialect-name">乐山话</div>
+                            <div class="dialect-sub">乐山市 / 西南官话-岷江片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag training">训练中</span>
+                        <button class="toggle" data-code="ls"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">达</div>
+                        <div>
+                            <div class="dialect-name">达州话</div>
+                            <div class="dialect-sub">达州市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="dz"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">泸</div>
+                        <div>
+                            <div class="dialect-name">泸州话</div>
+                            <div class="dialect-sub">泸州市 / 西南官话-赤灌片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="lz"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">宜</div>
+                        <div>
+                            <div class="dialect-name">宜宾话</div>
+                            <div class="dialect-sub">宜宾市 / 西南官话-赤灌片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="yb"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">自</div>
+                        <div>
+                            <div class="dialect-name">自贡话</div>
+                            <div class="dialect-sub">自贡市 / 西南官话-赤灌片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="zg"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">广</div>
+                        <div>
+                            <div class="dialect-name">广安话</div>
+                            <div class="dialect-sub">广安市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="ga"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">内</div>
+                        <div>
+                            <div class="dialect-name">内江话</div>
+                            <div class="dialect-sub">内江市 / 西南官话-成渝片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="nj"></button>
+                    </div>
+                </div>
+
+                <div class="dialect-item">
+                    <div class="dialect-left">
+                        <div class="dialect-icon">雅</div>
+                        <div>
+                            <div class="dialect-name">雅安话</div>
+                            <div class="dialect-sub">雅安市 / 西南官话-西蜀片</div>
+                        </div>
+                    </div>
+                    <div class="dialect-right">
+                        <span class="dialect-tag idle">待启用</span>
+                        <button class="toggle" data-code="ya"></button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <div class="bottom-nav">
+            <a href="index.html" class="nav-link">声纹识别</a>
+            <a href="language.html" class="nav-link">适配语种</a>
+            <a href="dialect.html" class="nav-link current">适配方言</a>
+            <a href="model.html" class="nav-link">模型管理</a>
+        </div>
+        </div><!-- end scroll-area -->
+    </div>
+
+    <script>
+        const DIALECT_STORAGE_KEY = 'wdqk_dialects';
+        const dialectCodes = ['cd','cq','my','nc','ls','dz','lz','yb','zg','ga','nj','ya'];
+        const dialectNames = {
+            cd:'成都话', cq:'重庆话', my:'绵阳话', nc:'南充话', ls:'乐山话', dz:'达州话',
+            lz:'泸州话', yb:'宜宾话', zg:'自贡话', ga:'广安话', nj:'内江话', ya:'雅安话'
+        };
+        const defaultOn = { cd:true, cq:true, my:true };
+
+        function loadDialectState() {
+            try {
+                const saved = localStorage.getItem(DIALECT_STORAGE_KEY);
+                if (saved) return JSON.parse(saved);
+            } catch(e) {}
+            return { ...defaultOn };
+        }
+        function saveDialectState(state) {
+            localStorage.setItem(DIALECT_STORAGE_KEY, JSON.stringify(state));
+            updateDialectStats(state);
+        }
+        function updateDialectStats(state) {
+            const active = Object.values(state).filter(v => v).length;
+            document.querySelectorAll('.stat-num').forEach((el, i) => {
+                if (i === 1) el.textContent = active;
+                if (i === 2) el.textContent = dialectCodes.length - active;
+            });
+        }
+        function applyDialectState() {
+            const state = loadDialectState();
+            document.querySelectorAll('.toggle[data-code]').forEach(btn => {
+                const code = btn.dataset.code;
+                const isOn = !!state[code];
+                const item = btn.closest('.dialect-item');
+                const tag = item.querySelector('.dialect-tag');
+                btn.classList.toggle('on', isOn);
+                item.classList.toggle('active', isOn);
+                if (isOn) {
+                    tag.textContent = '已启用'; tag.className = 'dialect-tag active';
+                } else if (['nc','ls'].includes(code)) {
+                    tag.textContent = '训练中'; tag.className = 'dialect-tag training';
+                } else {
+                    tag.textContent = '待启用'; tag.className = 'dialect-tag idle';
+                }
+            });
+            updateDialectStats(state);
+        }
+        document.querySelectorAll('.toggle[data-code]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const code = btn.dataset.code;
+                const state = loadDialectState();
+                state[code] = !state[code];
+                saveDialectState(state);
+                applyDialectState();
+            });
+        });
+        applyDialectState();
+    </script>
+</body>
+</html>

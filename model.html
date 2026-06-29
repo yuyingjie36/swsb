@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>模型管理 - 纹定乾坤</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-pink: #ff006e;
+            --neon-purple: #b537f2;
+            --neon-green: #00ff88;
+            --neon-orange: #ff8c00;
+            --dark-bg: #0a0a0f;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --grid-color: rgba(0, 245, 255, 0.05);
+            --border-glow: 0 0 8px rgba(0, 245, 255, 0.3);
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark-bg); color: #ffffff;
+            overflow: hidden; height: 100vh; height: 100dvh;
+        }
+
+        .cyber-grid {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px), linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px; z-index: 0; opacity: 0.6;
+        }
+
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent 50%, rgba(0, 245, 255, 0.02) 50%);
+            background-size: 100% 4px; z-index: 999; pointer-events: none;
+        }
+
+        .container {
+            position: relative; z-index: 1; max-width: 430px; margin: 0 auto;
+            padding: 0 16px; height: 100vh; height: 100dvh;
+            display: flex; flex-direction: column;
+        }
+
+        /* 滚动区域 */
+        .scroll-area {
+            flex: 1; overflow-y: auto; overflow-x: hidden;
+            padding-bottom: 8px;
+        }
+        .scroll-area::-webkit-scrollbar { width: 2px; }
+        .scroll-area::-webkit-scrollbar-track { background: transparent; }
+        .scroll-area::-webkit-scrollbar-thumb { background: rgba(0, 245, 255, 0.15); border-radius: 1px; }
+
+        /* 顶部导航 */
+        .top-nav { display: flex; align-items: center; gap: 12px; padding-top: 30px; margin-bottom: 24px; }
+        .back-btn {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s ease; text-decoration: none;
+        }
+        .back-btn:hover { background: rgba(0, 245, 255, 0.1); border-color: rgba(0, 245, 255, 0.3); box-shadow: var(--border-glow); }
+        .back-btn svg { width: 18px; height: 18px; fill: currentColor; }
+        .nav-title { font-size: 18px; font-weight: 700; color: var(--neon-cyan); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 245, 255, 0.3); }
+
+        /* 面板通用 */
+        .panel {
+            background: var(--panel-bg); border: 1px solid rgba(0, 245, 255, 0.15);
+            border-radius: 12px; padding: 16px; margin-bottom: 16px;
+            position: relative; overflow: hidden;
+        }
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .panel-title {
+            font-size: 13px; font-weight: 600; color: var(--neon-cyan);
+            letter-spacing: 2px; display: flex; align-items: center; gap: 6px;
+        }
+        .panel-title::before {
+            content: ''; width: 6px; height: 6px; background: var(--neon-cyan);
+            border-radius: 50%; box-shadow: 0 0 8px var(--neon-cyan);
+        }
+        .panel-badge {
+            font-size: 11px; color: var(--neon-green); background: rgba(0, 255, 136, 0.1);
+            padding: 2px 10px; border-radius: 10px; border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        /* 统计卡片 */
+        .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .stat-card {
+            padding: 12px 8px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; text-align: center;
+        }
+        .stat-num { font-size: 20px; font-weight: 700; }
+        .stat-num.cyan { color: var(--neon-cyan); }
+        .stat-num.green { color: var(--neon-green); }
+        .stat-num.orange { color: var(--neon-orange); }
+        .stat-label { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-top: 4px; letter-spacing: 1px; }
+
+        /* 模型列表 */
+        .model-list { display: flex; flex-direction: column; gap: 10px; }
+        .model-item {
+            padding: 14px 16px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .model-item:hover { background: rgba(0, 245, 255, 0.06); border-color: rgba(0, 245, 255, 0.2); }
+        .model-item.running { border-color: rgba(0, 255, 136, 0.3); box-shadow: 0 0 10px rgba(0, 255, 136, 0.08); }
+
+        .model-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .model-name { font-size: 14px; font-weight: 600; }
+        .model-version { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-top: 2px; }
+
+        .model-tag {
+            font-size: 10px; padding: 3px 8px; border-radius: 6px;
+        }
+        .model-tag.running { border: 1px solid rgba(0,255,136,0.3); color: var(--neon-green); background: rgba(0,255,136,0.08); }
+        .model-tag.stopped { border: 1px solid rgba(255,0,110,0.3); color: var(--neon-pink); background: rgba(255,0,110,0.08); }
+        .model-tag.training { border: 1px solid rgba(255,140,0,0.3); color: var(--neon-orange); background: rgba(255,140,0,0.08); }
+
+        .model-meta { display: flex; gap: 16px; margin-top: 10px; }
+        .model-meta-item { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
+        .model-meta-item span { color: rgba(255, 255, 255, 0.7); }
+
+        /* 进度条 */
+        .model-progress { width: 100%; height: 3px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+        .model-progress-bar { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+        .model-progress-bar.green { background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green)); }
+        .model-progress-bar.orange { background: linear-gradient(90deg, var(--neon-orange), var(--neon-purple)); }
+        .model-progress-bar.pink { background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); }
+
+        /* 操作按钮 */
+        .model-actions { display: flex; gap: 8px; margin-top: 12px; }
+        .action-btn {
+            flex: 1; padding: 8px; font-size: 11px; font-weight: 600;
+            border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.6);
+            cursor: pointer; transition: all 0.2s ease; text-align: center;
+        }
+        .action-btn:hover { border-color: rgba(0, 245, 255, 0.3); color: var(--neon-cyan); background: rgba(0, 245, 255, 0.06); }
+        .action-btn.primary {
+            border-color: rgba(0, 245, 255, 0.3); color: var(--neon-cyan);
+            background: rgba(0, 245, 255, 0.08);
+        }
+        .action-btn.primary:hover { background: rgba(0, 245, 255, 0.15); box-shadow: var(--border-glow); }
+        .action-btn.danger { border-color: rgba(255, 0, 110, 0.2); color: var(--neon-pink); }
+        .action-btn.danger:hover { background: rgba(255, 0, 110, 0.08); }
+
+        /* 底部导航 */
+        .bottom-nav {
+            display: flex; justify-content: center; gap: 10px;
+            padding: 12px 0 env(safe-area-inset-bottom, 12px);
+            flex-shrink: 0;
+            border-top: 1px solid rgba(0, 245, 255, 0.1);
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .nav-link {
+            font-size: 12px; padding: 8px 16px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.5); text-decoration: none; transition: all 0.2s ease;
+        }
+        .nav-link:hover { border-color: rgba(0, 245, 255, 0.3); color: var(--neon-cyan); }
+        .nav-link.current { border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0, 245, 255, 0.08); }
+    </style>
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    <div class="scanline"></div>
+    <div class="container">
+        <!-- 顶部导航 -->
+        <div class="top-nav">
+            <a href="index.html" class="back-btn">
+                <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            </a>
+            <div class="nav-title">模型管理</div>
+        </div>
+
+        <div class="scroll-area">
+
+        <!-- 统计 -->
+        <div class="stat-row">
+            <div class="stat-card">
+                <div class="stat-num cyan">4</div>
+                <div class="stat-label">模型总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num green">2</div>
+                <div class="stat-label">运行中</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num orange">1</div>
+                <div class="stat-label">训练中</div>
+            </div>
+        </div>
+
+        <!-- 模型列表 -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">已部署模型</div>
+                <div class="panel-badge">4 个</div>
+            </div>
+            <div class="model-list">
+
+                <!-- 模型 1 -->
+                <div class="model-item running" data-id="m1">
+                    <div class="model-top">
+                        <div>
+                            <div class="model-name">VD-Base-256</div>
+                            <div class="model-version">v2.1.0 / 基础识别模型</div>
+                        </div>
+                        <span class="model-tag running" data-status>运行中</span>
+                    </div>
+                    <div class="model-meta">
+                        <div class="model-meta-item">参数: <span>25.6M</span></div>
+                        <div class="model-meta-item">延迟: <span>32ms</span></div>
+                        <div class="model-meta-item">准确率: <span>99.2%</span></div>
+                    </div>
+                    <div class="model-progress"><div class="model-progress-bar green" style="width: 99%"></div></div>
+                    <div class="model-actions">
+                        <button class="action-btn primary">热更新</button>
+                        <button class="action-btn">导出</button>
+                        <button class="action-btn danger">停止</button>
+                    </div>
+                </div>
+
+                <!-- 模型 2 -->
+                <div class="model-item running" data-id="m2">
+                    <div class="model-top">
+                        <div>
+                            <div class="model-name">VD-Lang-Switch</div>
+                            <div class="model-version">v1.3.2 / 语种切换模型</div>
+                        </div>
+                        <span class="model-tag running" data-status>运行中</span>
+                    </div>
+                    <div class="model-meta">
+                        <div class="model-meta-item">参数: <span>18.2M</span></div>
+                        <div class="model-meta-item">延迟: <span>45ms</span></div>
+                        <div class="model-meta-item">准确率: <span>96.8%</span></div>
+                    </div>
+                    <div class="model-progress"><div class="model-progress-bar green" style="width: 97%"></div></div>
+                    <div class="model-actions">
+                        <button class="action-btn primary">热更新</button>
+                        <button class="action-btn">导出</button>
+                        <button class="action-btn danger">停止</button>
+                    </div>
+                </div>
+
+                <!-- 模型 3 -->
+                <div class="model-item" data-id="m3">
+                    <div class="model-top">
+                        <div>
+                            <div class="model-name">VD-Dialect-Sichuan</div>
+                            <div class="model-version">v0.9.1 / 川渝方言模型</div>
+                        </div>
+                        <span class="model-tag training" data-status>训练中</span>
+                    </div>
+                    <div class="model-meta">
+                        <div class="model-meta-item">参数: <span>32.1M</span></div>
+                        <div class="model-meta-item">语料: <span>12,480h</span></div>
+                        <div class="model-meta-item">Epoch: <span>47/60</span></div>
+                    </div>
+                    <div class="model-progress"><div class="model-progress-bar orange" style="width: 78%"></div></div>
+                    <div class="model-actions">
+                        <button class="action-btn">暂停训练</button>
+                        <button class="action-btn">日志</button>
+                        <button class="action-btn danger">取消</button>
+                    </div>
+                </div>
+
+                <!-- 模型 4 -->
+                <div class="model-item" data-id="m4">
+                    <div class="model-top">
+                        <div>
+                            <div class="model-name">VD-AntiSpoof</div>
+                            <div class="model-version">v1.0.0 / 反欺骗检测</div>
+                        </div>
+                        <span class="model-tag stopped" data-status>已停止</span>
+                    </div>
+                    <div class="model-meta">
+                        <div class="model-meta-item">参数: <span>8.7M</span></div>
+                        <div class="model-meta-item">延迟: <span>15ms</span></div>
+                        <div class="model-meta-item">FAR: <span>0.02%</span></div>
+                    </div>
+                    <div class="model-progress"><div class="model-progress-bar pink" style="width: 0%"></div></div>
+                    <div class="model-actions">
+                        <button class="action-btn primary">部署</button>
+                        <button class="action-btn">导出</button>
+                        <button class="action-btn danger">删除</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <div class="bottom-nav">
+            <a href="index.html" class="nav-link">声纹识别</a>
+            <a href="language.html" class="nav-link">适配语种</a>
+            <a href="dialect.html" class="nav-link">适配方言</a>
+            <a href="model.html" class="nav-link current">模型管理</a>
+        </div>
+        </div><!-- end scroll-area -->
+    </div>
+
+    <script>
+        const MODEL_STORAGE_KEY = 'wdqk_models';
+        const defaultModelState = { m1:'running', m2:'running', m3:'training', m4:'stopped' };
+
+        function loadModelState() {
+            try { const saved = localStorage.getItem(MODEL_STORAGE_KEY); if (saved) return JSON.parse(saved); }
+            catch(e) {}
+            return { ...defaultModelState };
+        }
+        function saveModelState(state) {
+            localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(state));
+            updateModelStats(state);
+        }
+        function updateModelStats(state) {
+            const values = Object.values(state);
+            document.querySelectorAll('.stat-num').forEach((el, i) => {
+                if (i === 0) el.textContent = Object.keys(state).length;
+                if (i === 1) el.textContent = values.filter(v => v === 'running').length;
+                if (i === 2) el.textContent = values.filter(v => v === 'training').length;
+            });
+        }
+        function applyModelState() {
+            const state = loadModelState();
+            document.querySelectorAll('.model-item[data-id]').forEach(item => {
+                const id = item.dataset.id;
+                const status = state[id] || 'stopped';
+                const tag = item.querySelector('[data-status]');
+                const bar = item.querySelector('.model-progress-bar');
+                item.className = 'model-item' + (status === 'running' ? ' running' : '');
+                tag.className = 'model-tag ' + status;
+                tag.textContent = status === 'running' ? '运行中' : status === 'training' ? '训练中' : '已停止';
+                if (bar) {
+                    bar.className = 'model-progress-bar ' + (status === 'running' ? 'green' : status === 'training' ? 'orange' : 'pink');
+                }
+                // 更新操作按钮
+                const actions = item.querySelector('.model-actions');
+                if (actions) {
+                    if (status === 'stopped') {
+                        actions.innerHTML = `
+                            <button class="action-btn primary action-deploy">部署</button>
+                            <button class="action-btn">导出</button>
+                            <button class="action-btn danger">删除</button>`;
+                    } else {
+                        actions.innerHTML = `
+                            <button class="action-btn primary">热更新</button>
+                            <button class="action-btn">导出</button>
+                            <button class="action-btn danger action-stop">停止</button>`;
+                    }
+                }
+            });
+            updateModelStats(state);
+        }
+        document.querySelector('.model-list').addEventListener('click', (e) => {
+            const btn = e.target.closest('.action-btn');
+            if (!btn) return;
+            const item = btn.closest('.model-item[data-id]');
+            const id = item.dataset.id;
+            const state = loadModelState();
+            if (btn.classList.contains('action-stop')) {
+                state[id] = 'stopped';
+            } else if (btn.classList.contains('action-deploy')) {
+                state[id] = 'running';
+            }
+            saveModelState(state);
+            applyModelState();
+        });
+        applyModelState();
+    </script>
+</body>
+</html>
